@@ -37,3 +37,24 @@ A module that takes `name` and `count` at load time and exposes them under sysfs
   * `module_param(name, type, perm)` declares a parameter; `perm` sets its sysfs file mode
   * Changing a value via sysfs does not re-run `init`; it only updates the variable
   * `modinfo` shows each parameter and its `MODULE_PARM_DESC` text
+
+### 03. Character Device Driver (`03_char_driver`)
+A minimal character driver exposing `/dev/mychar`: data written from user space is stored in a kernel buffer and can be read back.
+
+* **Source Files**: `mychar.c`, `Makefile`
+* **How to Build & Run**:
+```bash
+  make
+  sudo insmod mychar.ko
+  echo "hello kernel" | sudo tee /dev/mychar
+  sudo cat /dev/mychar
+  sudo dmesg | tail -n 8
+  sudo rmmod mychar
+```
+* **Key Takeaways**:
+  * `alloc_chrdev_region` + `cdev_add` bind a major:minor to a `file_operations` table
+  * `class_create` + `device_create` let udev create `/dev/mychar` automatically
+  * `copy_to_user` / `copy_from_user` return the number of bytes *not* copied; non-zero means `-EFAULT`
+  * `read` must honor `*ppos` and return 0 at the end, otherwise `cat` never terminates
+  * Error paths in `init` unwind with `goto` labels in reverse order
+  * Known limitation: global buffer without locking (race condition), to be addressed in a later experiment
